@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>BlindTown Roleplay v8</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#8bc77b}
+#game,#world{position:fixed;inset:0;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+#world.outside{background:linear-gradient(#83c979,#a7d989)}
+#world.inside{background:#ded7ca}
+.road{position:absolute;background:#62676c}
+.road.h{left:0;right:0;top:46%;height:12%}
+.road.v{top:0;bottom:0;left:45%;width:12%}
+.landmark,.object,.zone,.player,.vehicle{position:absolute;transform:translate(-50%,-50%)}
+.landmark{width:10vw;min-width:70px;max-width:120px;height:8vh;min-height:48px;border:2px solid #222;border-radius:10px;background:#f7f1e8;text-align:center;font-weight:800;font-size:12px;padding:8px;z-index:5}
+.object{width:11vw;min-width:64px;max-width:110px;height:7vh;min-height:42px;border:2px solid #292929;border-radius:8px;background:#fff;font-size:11px;font-weight:700;text-align:center;padding:5px;z-index:5}
+.zone{border:2px solid rgba(0,0,0,.32);background:rgba(255,255,255,.16);z-index:1}
+.zone span{position:absolute;left:6px;top:4px;font-size:11px;font-weight:800}
+.player{width:24px;height:24px;border-radius:50%;background:#111;border:4px solid #fff;z-index:20;pointer-events:none}
+.player:after{content:"";position:absolute;left:6px;top:-11px;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:8px solid #111}.vehicle{width:44px;height:26px;border:3px solid #222;border-radius:8px;background:#ddd;z-index:12;font-size:9px;font-weight:800;text-align:center;padding-top:5px}
+#gesture{position:fixed;inset:0;z-index:100;background:transparent;touch-action:none}
+#version{position:fixed;right:6px;bottom:calc(4px + env(safe-area-inset-bottom));font-size:9px;opacity:.25;z-index:2;pointer-events:none}
+</style>
+</head>
+<body>
+<div id="game">
+  <div id="world" class="outside"></div>
+  <div id="gesture" aria-label="BlindTown game world"></div>
+  <div id="version">v8</div>
+</div>
+<script>
+(()=>{
+"use strict";
+
+const $=s=>document.querySelector(s);
+const world=$("#world"), gesture=$("#gesture");
+
+const audio={
+ birds:"11325622-bird-sounds-241394.mp3",
+ hairbrush:"54570407-hair-brushing-sound-481687.mp3",
+ bath:"alex_jauk-bathtub-filling-sound-195144.mp3",
+ microwave:"alex_jauk-microwaving-207596.mp3",
+ spit:"alex_jauk-spitting-out-water-funny-211792.mp3",
+ supermarket:"alex_jauk-supermarket-ambience-sounds-518582.mp3",
+ tea:"alex_jauk-tea-slurping-sound-191460.mp3",
+ toothbrush:"alex_jauk-tooth-brushing-sound-195619.mp3",
+ tv:"arunangshubanerjee-tv-playing-in-the-next-room-distant-and-indistinct-television-sound-360697.mp3",
+ bed:"arunangshubanerjee-woman-getting-into-bed-blanket-friction-sound-341380.mp3",
+ babycry2:"bahyudinnor-heartbreaking-baby-crying-sound-effect-realistic-amp-high-quality-311648.mp3",
+ knock:"bromiespectactular-knocking-on-door-266504.mp3",
+ scanbeep:"cartoon-music-game-sfx-cash-register-scanner-single-beep-494483.mp3",
+ bag:"dobcommunications-paper-bag-rustling-through-it-1-284814.mp3",
+ babycry:"dragon-studio-baby-crying-463213.mp3",
+ cash:"dragon-studio-cash-register-kaching-376867.mp3",
+ rain:"dragon-studio-copyright-free-rain-sounds-331497.mp3",
+ cat:"dragon-studio-cute-cat-meow-472372.mp3",
+ ding:"dragon-studio-ding-sfx-472366.mp3",
+ dogfar:"dragon-studio-distant-dog-barking-472373.mp3",
+ dog:"dragon-studio-dog-bark-sound-effect-322989.mp3",
+ doorbell:"dragon-studio-doorbell-ding-dong-482879.mp3",
+ wood:"dragon-studio-footsteps-on-wood-397989.mp3",
+ typing:"dragon-studio-keyboard-typing-sound-effect-335503.mp3",
+ lightswitch:"dragon-studio-light-switch-on-382714.mp3",
+ caropen:"dragon-studio-open-car-door-372469.mp3",
+ purr:"dragon-studio-purring-cat-401727.mp3",
+ vomit1:"dragon-studio-vomiting-sound-effect-382720 2.mp3",
+ vomit2:"dragon-studio-vomiting-sound-effect-382720.mp3",
+ splash:"dragon-studio-water-splash-effect-443133.mp3",
+ hospital:"fadingembersaudio-heart-monitor-hospital-ambience-430219.mp3",
+ childlaugh:"floraphonic-child-laughter-3-186730.mp3",
+ squeak:"floraphonic-cute-animal-squeak-1-188097.mp3",
+ mobile:"freesound_community-baby-music-mobile-23893.mp3",
+ babynoise:"freesound_community-baby-noises-60911.mp3",
+ babysnore:"freesound_community-baby-snoring-snore-sleeping-breathing-79536.mp3",
+ breath:"freesound_community-breath-6155.mp3",
+ burp1:"freesound_community-burp-104984 2.mp3",
+ burp2:"freesound_community-burp-104984.mp3",
+ classroom:"freesound_community-classroom-32941.mp3",
+ clothes:"freesound_community-clothes-rustling-2-6286.mp3",
+ dishes:"freesound_community-crockery-and-cutlery-19823.mp3",
+ defib:"freesound_community-defibrillator-6961.mp3",
+ drink:"freesound_community-drinking-water-from-a-glass-44654.mp3",
+ fridgeclose:"freesound_community-fridge-close-80052.mp3",
+ fridgeopen:"freesound_community-fridge-open-80053.mp3",
+ foodcart:"freesound_community-hospital-food-cart-wheeled-79068.mp3",
+ door:"freesound_community-main-door-opening-closing-38280.mp3",
+ cheese:"freesound_community-opening-cheese-slice-packet-75858.mp3",
+ cupboard:"freesound_community-opening-cupboard-37521.mp3",
+ paper:"freesound_community-paper-sound-39259.mp3",
+ cart:"freesound_community-pushing-grocery-cart-63821.mp3",
+ rattle:"freesound_community-rattle-46377.mp3",
+ restaurant:"freesound_community-restaurant-sounds-22945.mp3",
+ sneeze:"freesound_community-sneeze-female-x3-jgray-89803.mp3",
+ hairdryer:"freesound_community-sound-of-a-hairdryer-68897.mp3",
+ popsicle:"freesound_community-sucking-on-a-popsicle-75782.mp3",
+ washing:"freesound_community-washing-machine-working-22260.mp3",
+ coughwheezy:"freesound_community-wheezy-coughing-83635.mp3",
+ concrete:"freesoundsxx-walking-on-concrete-ver-2-268513.mp3",
+ crying:"freesoundsxx-woman-crying-softly-268484.mp3",
+ breakbell:"geralt-the-big-break-at-half-past-nine-220150.mp3",
+ drink2:"hasin2004-drinking-water-sound-effect-247452.mp3",
+ shower:"jadeallencook-running-shower-water-sound-in-bathroom-with-steady-stream-339233 2.mp3",
+ babylaugh:"jodywhiteley-baby-laugh-giggle-119650.mp3",
+ keys:"kai_audio-keys-jingle-471538.mp3",
+ carclose:"kamranbashirb-car-door-shut-297266.mp3",
+ carengine:"manshaofficial-diesel-car-engine-sound-111994.mp3",
+ pencil:"mrstokes302-pencil-writing-sfx-mrstokes302-534206.mp3",
+ pills:"photos-pill-bottle-shake-415796.mp3",
+ carstart:"pwlpl-car-engine-start-sound-effect-521106.mp3",
+ eat1:"relaxsoundsde-sound-eating-free-to-use-429258 2.mp3",
+ eat2:"relaxsoundsde-sound-eating-free-to-use-429258.mp3",
+ cough1:"ribhavagrawal-coughing-sound-effect-type-06-294181.mp3",
+ cough2:"ribhavagrawal-coughing-type-sound-effect-04-294174.mp3",
+ schoolbell:"ribhavagrawal-school_bell-loopable-sound-effect-no-copyright-414552.mp3",
+ knock2:"scottishperson-sound-effect-door-knock-single-200531.mp3",
+ pour:"scottishperson-sound-effect-pouring-water-192803.mp3",
+ frying:"shut_up_ghost-frying-food-cooking-kitchen-free-sound-effect-382865.mp3",
+ heartbeat:"soundreality-heart-beat-137135.mp3",
+ doorreverb:"soundreality-open-and-closed-door-reverb-206833.mp3",
+ ringtone:"soundreality-phone-ringtone-sound-294438.mp3",
+ vomit3:"soundreality-vomit-150122.mp3",
+ alarm:"soundsgoodmusic-alarm-2-375697.mp3",
+ lock:"soundshelfstudio-ui-digital-target-lock-beep-526191.mp3",
+ carstop:"spinopel-turn-off-the-car-engine-345716.mp3",
+ stomach:"superv007-cartoon-stomach-growling-sfx-357010.mp3",
+ microwaveDoor:"tommylynn-microwave-opening-and-closing-369266.mp3",
+ ambulance2:"u_xg7ssi08yr-ambulance-siren-363656 2.mp3",
+ ambulance:"u_xg7ssi08yr-ambulance-siren-363656.mp3",
+ childcough:"u_xg7ssi08yr-child-coughs-355471.mp3",
+ vacuum:"u_xg7ssi08yr-vaccuumn-cleaner-362049.mp3",
+ chime:"universfield-clear-bell-chime-487898.mp3",
+ message:"universfield-happy-message-ping-351298.mp3",
+ phone:"universfield-phone-ringing-229175.mp3",
+ toilet:"vibehorn-toilet-flush-fx-3-424983.mp3",
+ outofbreath:"voicebosch-out-of-breath-male-176715.mp3"
+};
+
+const places=[
+ {id:"home",name:"Your house",x:12,y:16,amb:"birds"},
+ {id:"salon",name:"Hair salon",x:18,y:48,amb:"hairdryer"},
+ {id:"hospital",name:"Hospital",x:18,y:82,amb:"hospital"},
+ {id:"park",name:"Park",x:47,y:15,amb:"birds"},
+ {id:"playground",name:"Playground",x:48,y:34,amb:"childlaugh"},
+ {id:"cafe",name:"Café",x:49,y:82,amb:"restaurant"},
+ {id:"school",name:"School",x:80,y:15,amb:"schoolbell"},
+ {id:"supermarket",name:"Supermarket",x:82,y:49,amb:"supermarket"},
+ {id:"petshop",name:"Pet shop",x:82,y:82,amb:"dog"}
+];
+
+const scenes={
+home:{
+ name:"Your house",
+ zones:[
+  ["Hall",7,5,28,25],["Living room",34,5,61,42],["Kitchen",65,5,95,42],
+  ["Bathroom",7,47,31,72],["Bedroom",35,47,62,72],["Nursery",66,47,95,72],
+  ["Laundry room",7,76,31,96],["Back garden",35,76,95,96]
+ ],
+ objects:[
+  ["Front door",12,13,"door","exit"],["Doorbell",24,13,"doorbell","sound"],["House keys",18,25,"keys","sound"],
+  ["Sofa",42,20,null,"sit"],["Television",56,20,"tv","sound"],["Cat",50,35,"purr","sound"],["Vacuum cleaner",38,35,"vacuum","sound"],
+  ["Fridge",72,18,"fridgeopen","sound"],["Kitchen cupboard",84,18,"cupboard","sound"],["Microwave",72,33,"microwave","sound"],["Cooker",86,33,"frying","sound"],
+  ["Bath",14,58,"bath","sound"],["Shower",25,58,"shower","sound"],["Toilet",18,68,"toilet","sound"],["Sink",28,68,"toothbrush","sound"],
+  ["Bed",43,58,"bed","lie"],["Wardrobe",55,58,"clothes","sound"],["Hairbrush",57,68,"hairbrush","sound"],
+  ["Cot",73,58,"babysnore","sound"],["Baby",84,58,"babynoise","sound"],["Baby mobile",84,68,"mobile","sound"],["Rattle",73,68,"rattle","sound"],
+  ["Washing machine",18,86,"washing","sound"],["Laundry basket",27,86,"clothes","sound"],
+  ["Garden bench",52,86,null,"sit"],["Garden birds",72,86,"birds","sound"]
+ ]
+},
+hospital:{
+ name:"Hospital",
+ zones:[
+  ["Reception",5,5,34,28],["Waiting room",38,5,68,28],["Pharmacy",72,5,95,28],
+  ["Main ward",5,33,45,67],["Patient room",50,33,70,67],["Treatment room",75,33,95,67],
+  ["Operating theatre",5,72,36,96],["Staff room",41,72,67,96],["Ambulance bay",72,72,95,96]
+ ],
+ objects:[
+  ["Exit doors",10,12,"doorreverb","exit"],["Reception desk",24,16,"typing","sound"],["Hospital phone",30,24,"phone","sound"],
+  ["Waiting chair",47,17,null,"sit"],["Vending machine",60,17,"cash","sound"],["Medicine shelves",82,17,"pills","sound"],
+  ["Hospital bed",15,45,"bed","lie"],["Heart monitor",30,45,"hospital","sound"],["Food trolley",17,59,"foodcart","sound"],["Patient notes",34,59,"paper","sound"],
+  ["Patient bed",57,47,"bed","lie"],["Water cup",64,59,"drink","sound"],
+  ["Defibrillator",82,45,"defib","sound"],["Treatment couch",88,58,"bed","lie"],["Medicine bottle",78,59,"pills","sound"],
+  ["Operating table",18,83,"heartbeat","lie"],["Medical monitor",30,83,"hospital","sound"],
+  ["Staff computer",49,83,"typing","sound"],["Staff chair",60,83,null,"sit"],
+  ["Ambulance",82,83,"ambulance","sound"],["Ambulance doors",91,83,"caropen","sound"]
+ ]
+},
+school:{
+ name:"School",
+ zones:[
+  ["Entrance",5,5,28,25],["Main corridor",32,5,95,25],["Classroom one",5,30,45,62],
+  ["Classroom two",50,30,95,62],["Library",5,67,34,96],["Cafeteria",39,67,68,96],["Nurse office",73,67,95,96]
+ ],
+ objects:[
+  ["School doors",12,13,"door","exit"],["School bell",22,13,"schoolbell","sound"],
+  ["Lockers",40,15,"lock","sound"],["Corridor bench",65,15,null,"sit"],
+  ["Teacher desk",14,41,"pencil","sound"],["Student desk",30,42,null,"sit"],["Whiteboard",39,53,"classroom","sound"],
+  ["Teacher desk",60,41,"paper","sound"],["Student desk",80,42,null,"sit"],["Classroom sounds",67,54,"classroom","sound"],
+  ["Bookshelf",14,80,"paper","sound"],["Library table",27,82,null,"sit"],
+  ["Lunch counter",48,80,"dishes","sound"],["Cafeteria table",61,82,"eat1","sound"],
+  ["Nurse bed",80,80,"bed","lie"],["Medicine cabinet",90,80,"pills","sound"],["Nurse phone",86,91,"phone","sound"]
+ ]
+},
+supermarket:{
+ name:"Supermarket",
+ zones:[
+  ["Entrance",5,5,25,28],["Produce",29,5,52,28],["Bakery",56,5,75,28],["Freezers",79,5,95,28],
+  ["Aisle one",5,34,28,70],["Aisle two",33,34,56,70],["Aisle three",61,34,84,70],
+  ["Checkouts",5,76,55,96],["Customer service",60,76,95,96]
+ ],
+ objects:[
+  ["Automatic doors",12,14,"door","exit"],["Shopping trolley",20,22,"cart","sound"],
+  ["Fruit display",39,16,"bag","sound"],["Vegetable display",48,23,"bag","sound"],
+  ["Bakery counter",65,17,"bag","sound"],["Freezer door",87,17,"fridgeopen","sound"],
+  ["Food shelf",16,47,"bag","sound"],["Drinks shelf",45,47,"pour","sound"],["Snack shelf",73,47,"cheese","sound"],
+  ["Checkout one",17,84,"scanbeep","sound"],["Checkout two",34,84,"cash","sound"],["Bagging area",47,88,"bag","sound"],
+  ["Customer service desk",73,84,"typing","sound"],["Store phone",88,87,"phone","sound"]
+ ]
+},
+cafe:{
+ name:"Café",
+ zones:[
+  ["Entrance",5,5,25,28],["Seating area",30,5,95,55],["Counter",5,60,52,96],["Kitchen",57,60,95,96]
+ ],
+ objects:[
+  ["Café door",12,14,"door","exit"],["Window table",42,20,null,"sit"],["Sofa seat",70,20,null,"sit"],["Dining table",55,43,"dishes","sound"],
+  ["Till",18,72,"cash","sound"],["Coffee counter",38,72,"tea","sound"],["Cake display",42,87,"bag","sound"],
+  ["Cooker",68,74,"frying","sound"],["Kitchen sink",84,74,"dishes","sound"],["Fridge",82,88,"fridgeopen","sound"]
+ ]
+},
+salon:{
+ name:"Hair salon",
+ zones:[
+  ["Reception",5,5,30,30],["Cutting area",35,5,95,48],["Wash area",5,53,45,96],["Drying area",50,53,95,96]
+ ],
+ objects:[
+  ["Salon door",12,14,"door","exit"],["Reception desk",22,22,"typing","sound"],
+  ["Salon chair one",48,20,null,"sit"],["Hairbrush",58,20,"hairbrush","sound"],["Salon chair two",78,20,null,"sit"],["Scissors station",86,36,"clothes","sound"],
+  ["Wash basin",18,70,"splash","sound"],["Wash chair",35,70,null,"sit"],
+  ["Hair dryer",61,70,"hairdryer","sound"],["Dryer chair",77,70,null,"sit"],["Hair products",86,87,"bag","sound"]
+ ]
+},
+petshop:{
+ name:"Pet shop",
+ zones:[
+  ["Entrance",5,5,28,28],["Front shop",33,5,95,35],["Cat room",5,40,45,72],["Dog room",50,40,95,72],["Pet supplies",5,77,95,96]
+ ],
+ objects:[
+  ["Pet shop door",12,14,"door","exit"],["Till",22,20,"cash","sound"],["Pet food shelf",46,20,"bag","sound"],["Toy shelf",72,20,"squeak","sound"],
+  ["Cat",18,55,"cat","sound"],["Purring cat",34,58,"purr","sound"],
+  ["Dog",62,55,"dog","sound"],["Distant dog",82,57,"dogfar","sound"],
+  ["Pet bed",20,86,"bed","sound"],["Pet bowls",45,86,"dishes","sound"],["Pet toys",72,86,"rattle","sound"]
+ ]
+},
+park:{
+ name:"Park",
+ zones:[["Path",5,5,95,25],["Grass",5,30,55,96],["Pond",60,30,95,65],["Picnic area",60,70,95,96]],
+ objects:[
+  ["Park gate",12,14,"door","exit"],["Bench",34,17,null,"sit"],["Birds",65,17,"birds","sound"],
+  ["Tree",20,48,null,"none"],["Grass area",42,55,"childlaugh","sound"],["Pond",77,48,"splash","sound"],
+  ["Picnic table",72,82,null,"sit"],["Ice lolly",88,84,"popsicle","sound"]
+ ]
+},
+playground:{
+ name:"Playground",
+ zones:[["Entrance",5,5,95,25],["Play equipment",5,30,95,75],["Seating",5,80,95,96]],
+ objects:[
+  ["Playground gate",12,14,"door","exit"],["Swing",24,48,"childlaugh","sound"],["Slide",48,48,"childlaugh","sound"],
+  ["Climbing frame",72,48,"outofbreath","sound"],["Bench",24,87,null,"sit"],["Children playing",72,87,"childlaugh","sound"]
+ ]
+}
+};
+
+let state={
+ outside:true, scene:null, x:12, y:18, dir:0,
+ lastOutside:{x:12,y:18}, seated:false, lying:false,
+ objectStates:{}, occupiedKey:null,
+ inVehicle:false, car:{x:15,y:18}
+};
+let focusKey="", focusObj=null;
+let ambienceAudio=null, effectAudio=null;
+let touch={startX:0,startY:0,lastX:0,lastY:0,dx:0,dy:0,moved:false,startTime:0,maxTouches:0,multiMoved:false};
+let moveTimer=null, mouseDown=false;
+
+const openables=new Set(["Fridge","Kitchen cupboard","Freezer door","Medicine cabinet","Wardrobe"]);
+const powered=new Set(["Television","Microwave","Washing machine","Hair dryer","Cooker","Vacuum cleaner"]);
+
+function unlockAudio(){
+ try{ if("speechSynthesis" in window) speechSynthesis.resume(); }catch(e){}
+}
+function speak(text){
+ if(!text || !("speechSynthesis" in window)) return;
+ unlockAudio();
+ try{
+  speechSynthesis.cancel();
+  if(ambienceAudio) ambienceAudio.volume=.12;
+  const u=new SpeechSynthesisUtterance(text);
+  u.rate=1.06; u.volume=1;
+  const restore=()=>{if(ambienceAudio) ambienceAudio.volume=.32;};
+  u.onend=restore; u.onerror=restore;
+  speechSynthesis.speak(u);
+ }catch(e){}
+}
+function speakFocus(label,key){
+ if(!label || key===focusKey) return;
+ focusKey=key; speak(label);
+}
+function playEffect(key){
+ const file=audio[key]; if(!file)return;
+ try{
+  if(effectAudio){effectAudio.pause();effectAudio=null;}
+  const a=new Audio(encodeURI(file)); a.volume=1; effectAudio=a;
+  a.onended=()=>{if(effectAudio===a)effectAudio=null;};
+  a.play().catch(()=>{});
+ }catch(e){}
+}
+function setAmbience(key){
+ if(ambienceAudio){ambienceAudio.pause();ambienceAudio=null;}
+ const file=audio[key]; if(!file)return;
+ try{const a=new Audio(encodeURI(file));a.loop=true;a.volume=.32;ambienceAudio=a;a.play().catch(()=>{});}catch(e){}
+}
+function stopAmbience(){if(ambienceAudio){ambienceAudio.pause();ambienceAudio=null;}}
+function pct(v){return Math.max(2,Math.min(98,v));}
+function addEl(cls,label,x,y,w,h){
+ const d=document.createElement("div");d.className=cls;d.textContent=label||"";
+ d.style.left=x+"%";d.style.top=y+"%";if(w)d.style.width=w+"%";if(h)d.style.height=h+"%";
+ world.appendChild(d);return d;
+}
+function stateKey(i){return state.scene+":"+i;}
+function objectLabel(o,i){
+ const st=state.objectStates[stateKey(i)];
+ if(st==="open")return o[0]+", open";
+ if(st==="on")return o[0]+", on";
+ if(st==="occupied")return o[0]+", occupied";
+ return o[0];
+}
+function renderScene(){
+ world.innerHTML=""; world.className=state.outside?"outside":"inside";
+ if(state.outside){
+  const rh=document.createElement("div");rh.className="road h";world.appendChild(rh);
+  const rv=document.createElement("div");rv.className="road v";world.appendChild(rv);
+  for(const p of places){const e=addEl("landmark",p.name,p.x,p.y);e.dataset.kind="place";e.dataset.id=p.id;}
+  const car=addEl("vehicle",state.inVehicle?"Driving":"Your car",state.car.x,state.car.y);car.dataset.kind="car";
+ }else{
+  const sc=scenes[state.scene];
+  for(const z of sc.zones){
+   const [name,x1,y1,x2,y2]=z,e=document.createElement("div");e.className="zone";
+   e.style.left=((x1+x2)/2)+"%";e.style.top=((y1+y2)/2)+"%";e.style.width=(x2-x1)+"%";e.style.height=(y2-y1)+"%";
+   const sp=document.createElement("span");sp.textContent=name;e.appendChild(sp);world.appendChild(e);
+  }
+  sc.objects.forEach((o,i)=>{const e=addEl("object",objectLabel(o,i),o[1],o[2]);e.dataset.kind="object";e.dataset.index=i;});
+ }
+ addEl("player","",state.x,state.y).classList.add("player");
+}
+function updatePlayer(){
+ const p=world.querySelector('.player'); if(p){p.style.left=state.x+'%';p.style.top=state.y+'%';}
+ const c=world.querySelector('.vehicle');if(c){c.style.left=state.car.x+'%';c.style.top=state.car.y+'%';c.textContent=state.inVehicle?'Driving':'Your car';}
+}
+function zoneAt(x,y){
+ if(state.outside)return null;
+ for(const z of scenes[state.scene].zones)if(x>=z[1]&&x<=z[3]&&y>=z[2]&&y<=z[4])return z[0];
+ return null;
+}
+function nearestPlace(max=8){
+ let best=null,bd=Infinity;for(const p of places){const d=Math.hypot(p.x-state.x,p.y-state.y);if(d<bd){bd=d;best=p;}}
+ return bd<=max?{p:best,d:bd}:null;
+}
+function nearestObject(max=8){
+ if(state.outside)return null;let best=null,bi=-1,bd=Infinity;
+ scenes[state.scene].objects.forEach((o,i)=>{const d=Math.hypot(o[1]-state.x,o[2]-state.y);if(d<bd){bd=d;best=o;bi=i;}});
+ return bd<=max?{o:best,i:bi,d:bd}:null;
+}
+function nearestCar(max=7){const d=Math.hypot(state.car.x-state.x,state.car.y-state.y);return d<=max?d:null;}
+function focusAtScreen(clientX,clientY){
+ const r=world.getBoundingClientRect(),x=(clientX-r.left)/r.width*100,y=(clientY-r.top)/r.height*100;
+ let best=null,bd=Infinity;
+ if(state.outside){
+  for(const p of places){const d=Math.hypot((p.x-x)*r.width/100,(p.y-y)*r.height/100);if(d<bd){bd=d;best={kind:'place',data:p,key:'place:'+p.id,label:p.name};}}
+  const cd=Math.hypot((state.car.x-x)*r.width/100,(state.car.y-y)*r.height/100);if(cd<bd){bd=cd;best={kind:'car',key:'car',label:'Your car'};}
+  if(best&&bd<42){focusObj=best;speakFocus(best.label,best.key);return;}
+ }else{
+  scenes[state.scene].objects.forEach((o,i)=>{const d=Math.hypot((o[1]-x)*r.width/100,(o[2]-y)*r.height/100);if(d<bd){bd=d;best={kind:'object',data:o,index:i,key:'object:'+i+':'+(state.objectStates[stateKey(i)]||''),label:objectLabel(o,i)};}});
+  if(best&&bd<38){focusObj=best;speakFocus(best.label,best.key);return;}
+  const z=zoneAt(x,y);if(z){focusObj={kind:'zone',name:z};speakFocus(z,'zone:'+z);return;}
+ }
+ focusObj=null; focusKey="";
+}
+function focusNearPlayer(){
+ if(state.outside){
+  const cp=nearestCar(5);if(cp!==null){focusObj={kind:'car'};speakFocus('Your car','near:car');return;}
+  const n=nearestPlace(7);if(n){focusObj={kind:'place',data:n.p};speakFocus(n.p.name,'near:place:'+n.p.id);return;}
+ }else{
+  const n=nearestObject(6);if(n){focusObj={kind:'object',data:n.o,index:n.i};speakFocus(objectLabel(n.o,n.i),'near:object:'+n.i+':'+(state.objectStates[stateKey(n.i)]||''));return;}
+  const z=zoneAt(state.x,state.y);if(z){focusObj={kind:'zone',name:z};speakFocus(z,'near:zone:'+z);return;}
+ }
+ focusObj=null;focusKey="";
+}
+function releaseOccupied(){
+ if(state.occupiedKey){delete state.objectStates[state.occupiedKey];state.occupiedKey=null;state.seated=false;state.lying=false;renderScene();}
+}
+function collides(nx,ny){
+ if(state.outside)return false;
+ const objs=scenes[state.scene].objects;
+ for(let i=0;i<objs.length;i++){
+  const o=objs[i]; if(state.occupiedKey===stateKey(i))continue;
+  if(Math.hypot(o[1]-nx,o[2]-ny)<3.4)return true;
+ }
+ return false;
+}
+function moveBy(dx,dy){
+ if(state.seated||state.lying)releaseOccupied();
+ let speed=state.inVehicle?1.25:.62;
+ const mag=Math.hypot(dx,dy);if(mag<12)return;
+ let nx=pct(state.x+(dx/mag)*speed),ny=pct(state.y+(dy/mag)*speed);
+ if(state.outside||!collides(nx,ny)){
+  state.x=nx;state.y=ny;state.dir=Math.atan2(dy,dx);
+  if(state.inVehicle){state.car.x=nx;state.car.y=ny;}
+  updatePlayer();focusNearPlayer();
+ }
+}
+function beginMovement(){if(moveTimer)return;moveTimer=setInterval(()=>moveBy(touch.dx,touch.dy),55);}
+function endMovement(){if(moveTimer){clearInterval(moveTimer);moveTimer=null;}touch.dx=touch.dy=0;}
+function enterScene(p){
+ state.lastOutside={x:state.x,y:state.y};state.outside=false;state.scene=p.id;state.x=12;state.y=14;state.inVehicle=false;
+ focusKey="";focusObj=null;stopAmbience();if(p.amb)setAmbience(p.amb);renderScene();speak(p.name);
+}
+function exitScene(){
+ state.outside=true;state.scene=null;state.x=state.lastOutside.x;state.y=state.lastOutside.y;focusKey="";focusObj=null;stopAmbience();renderScene();playEffect('door');
+}
+function enterExitCar(){
+ if(!state.outside)return;
+ if(state.inVehicle){state.inVehicle=false;state.car.x=state.x;state.car.y=state.y;playEffect('carclose');renderScene();speak('Out of car');return;}
+ if(nearestCar(7)===null){playEffect('lock');return;}
+ state.inVehicle=true;state.x=state.car.x;state.y=state.car.y;playEffect('caropen');setTimeout(()=>playEffect('carstart'),220);renderScene();speak('In car');
+}
+function toggleOpen(i,o){
+ const k=stateKey(i),open=state.objectStates[k]==='open';
+ if(open){delete state.objectStates[k];playEffect(o[0]==='Fridge'||o[0]==='Freezer door'?'fridgeclose':(o[3]||'door'));}
+ else{state.objectStates[k]='open';playEffect(o[3]||'door');}
+ renderScene();focusKey='';
+}
+function togglePower(i,o){
+ const k=stateKey(i),on=state.objectStates[k]==='on';
+ if(on){delete state.objectStates[k];if(o[0]==='Microwave')playEffect('microwaveDoor');else if(o[0]==='Television')playEffect('lock');else playEffect('lock');}
+ else{state.objectStates[k]='on';if(o[3])playEffect(o[3]);}
+ renderScene();focusKey='';
+}
+function interact(){
+ if(state.outside){
+  if((focusObj&&focusObj.kind==='car')||nearestCar(5)!==null){enterExitCar();return;}
+  let p=focusObj&&focusObj.kind==='place'?focusObj.data:null;if(!p){const n=nearestPlace(6);p=n&&n.p;}
+  if(!p||Math.hypot(p.x-state.x,p.y-state.y)>7){playEffect('lock');return;}
+  enterScene(p);return;
+ }
+ let o=null,i=-1;
+ if(focusObj&&focusObj.kind==='object'){o=focusObj.data;i=focusObj.index;}else{const n=nearestObject(6);if(n){o=n.o;i=n.i;}}
+ if(!o||Math.hypot(o[1]-state.x,o[2]-state.y)>7){playEffect('lock');return;}
+ const action=o[4];
+ if(action==='exit'){
+  const k=stateKey(i);if(state.objectStates[k]!=='open'){state.objectStates[k]='open';playEffect(o[3]||'door');renderScene();speak('Door open');return;}
+  exitScene();return;
+ }
+ if(action==='sit'||action==='lie'){
+  releaseOccupied();state.x=o[1];state.y=o[2];state.seated=action==='sit';state.lying=action==='lie';state.occupiedKey=stateKey(i);state.objectStates[state.occupiedKey]='occupied';if(o[3])playEffect(o[3]);renderScene();return;
+ }
+ if(openables.has(o[0])){toggleOpen(i,o);return;}
+ if(powered.has(o[0])){togglePower(i,o);return;}
+ if(o[3])playEffect(o[3]);
+}
+function scan(){
+ if(state.outside){
+  let arr=places.map(p=>({n:p.name,d:Math.hypot(p.x-state.x,p.y-state.y)}));arr.push({n:'Your car',d:Math.hypot(state.car.x-state.x,state.car.y-state.y)});arr.sort((a,b)=>a.d-b.d);speak(arr.slice(0,5).map(v=>`${v.n}, ${Math.round(v.d)} metres`).join('. '));
+ }else{
+  const z=zoneAt(state.x,state.y),arr=scenes[state.scene].objects.map((o,i)=>({n:objectLabel(o,i),d:Math.hypot(o[1]-state.x,o[2]-state.y)})).sort((a,b)=>a.d-b.d).slice(0,5);
+  speak(`${z||scenes[state.scene].name}. `+arr.map(v=>`${v.n}, ${Math.round(v.d)} metres`).join('. '));
+ }
+}
+function whereAmI(){state.outside?speak(state.inVehicle?'Town, in your car':'Town'):speak(`${scenes[state.scene].name}, ${zoneAt(state.x,state.y)||'inside'}`);}
+
+function resetTouch(t){touch.startX=t.clientX;touch.startY=t.clientY;touch.lastX=t.clientX;touch.lastY=t.clientY;touch.dx=0;touch.dy=0;touch.moved=false;touch.startTime=Date.now();touch.maxTouches=1;touch.multiMoved=false;}
+gesture.addEventListener('touchstart',e=>{
+ e.preventDefault();unlockAudio();touch.maxTouches=Math.max(touch.maxTouches,e.touches.length);
+ if(e.touches.length===1){const t=e.touches[0];resetTouch(t);focusAtScreen(t.clientX,t.clientY);}
+ else{endMovement();}
+},{passive:false});
+gesture.addEventListener('touchmove',e=>{
+ e.preventDefault();touch.maxTouches=Math.max(touch.maxTouches,e.touches.length);
+ if(e.touches.length!==1){touch.multiMoved=true;endMovement();return;}
+ const t=e.touches[0],dx=t.clientX-touch.startX,dy=t.clientY-touch.startY;
+ touch.lastX=t.clientX;touch.lastY=t.clientY;touch.dx=dx;touch.dy=dy;
+ if(Math.hypot(dx,dy)>16){touch.moved=true;beginMovement();}
+},{passive:false});
+gesture.addEventListener('touchend',e=>{
+ e.preventDefault();
+ if(e.touches.length>0)return;
+ endMovement();
+ const count=touch.maxTouches,dur=Date.now()-touch.startTime;
+ if(count===1&&!touch.moved&&dur<450){focusAtScreen(touch.lastX,touch.lastY);interact();}
+ else if(count===2&&!touch.multiMoved)scan();
+ else if(count===3&&!touch.multiMoved)whereAmI();
+ else if(count>=4&&!touch.multiMoved)enterExitCar();
+ touch.maxTouches=0;touch.multiMoved=false;touch.moved=false;
+},{passive:false});
+gesture.addEventListener('touchcancel',e=>{e.preventDefault();endMovement();touch.maxTouches=0;touch.multiMoved=false;touch.moved=false;},{passive:false});
+
+// Mouse/trackpad fallback for desktop testing.
+gesture.addEventListener('mousedown',e=>{mouseDown=true;resetTouch(e);focusAtScreen(e.clientX,e.clientY);});
+window.addEventListener('mousemove',e=>{if(!mouseDown)return;touch.dx=e.clientX-touch.startX;touch.dy=e.clientY-touch.startY;if(Math.hypot(touch.dx,touch.dy)>16){touch.moved=true;beginMovement();}});
+window.addEventListener('mouseup',e=>{if(!mouseDown)return;mouseDown=false;endMovement();if(!touch.moved){focusAtScreen(e.clientX,e.clientY);interact();}});
+gesture.addEventListener('contextmenu',e=>e.preventDefault());
+window.addEventListener('keydown',e=>{
+ if(e.key==='Enter'||e.key===' ')interact();
+ if(e.key.toLowerCase()==='s')scan();
+ if(e.key.toLowerCase()==='w')whereAmI();
+ if(e.key.toLowerCase()==='v')enterExitCar();
+ const step=state.inVehicle?2:1.1;let nx=state.x,ny=state.y;
+ if(e.key==='ArrowLeft')nx-=step;if(e.key==='ArrowRight')nx+=step;if(e.key==='ArrowUp')ny-=step;if(e.key==='ArrowDown')ny+=step;
+ nx=pct(nx);ny=pct(ny);if((nx!==state.x||ny!==state.y)&&(state.outside||!collides(nx,ny))){releaseOccupied();state.x=nx;state.y=ny;if(state.inVehicle){state.car.x=nx;state.car.y=ny;}updatePlayer();focusNearPlayer();}
+});
+
+renderScene();
+
+})();
+</script>
+</body>
+</html>
